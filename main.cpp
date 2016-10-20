@@ -6,6 +6,12 @@ using namespace std;
 
 namespace {
 
+//    const string IN = "/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/in.bin";
+//    const string OUT = "/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/out.bin";
+    const string IN = "input.bin";
+    const string OUT = "output.bin";
+    const int BLOCK = 100;
+
     void MultSimple(const int *__restrict a, const int *__restrict b, int *__restrict c, int n1, int m1, int n2, int m2) {
         for (int i = 0; i < n1; ++i) {
             for (int j = 0; j < m2; ++j) {
@@ -91,8 +97,8 @@ namespace {
     }
 
     void BlockMult(int BLOCK) {
-        ifstream in("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/in.bin", ios::in | ios::binary);
-        ofstream out("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/out.bin", ios::out | ios::binary);
+        ifstream in(IN, ios::in | ios::binary);
+        ofstream out(OUT, ios::out | ios::binary);
         if (in.is_open() && out.is_open()) {
             int n, m;
 
@@ -122,8 +128,11 @@ namespace {
                         readBlockB(in, k, j, BLOCK, b_n, b_m, n, b);
 
                         MultSimple(a, b, c, a_n, a_m, b_n, b_m);
+                        delete[] a;
+                        delete[] b;
                     }
                     writeBlockC(out, i, j, BLOCK, c_n, c_m, n, c);
+                    delete[] c;
                 }
             }
         }
@@ -132,19 +141,19 @@ namespace {
 
     void generateInFile(int n) {
         int m = n;
-        ofstream file("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/in.bin", ios::out | ios::binary);
+        ofstream file(IN, ios::out | ios::binary);
         if (file.is_open()) {
             file.write((char *) &n, sizeof(n));
             file.write((char *) &m, sizeof(m));
             for (int i = 0; i < n * m; i++) {
-                uint8_t num = (uint8_t) (rand() % 4);
+                uint8_t num = (uint8_t) (rand() % 256);
                 file.write((char *) &num, sizeof(num));
             }
 
             file.write((char *) &n, sizeof(n));
             file.write((char *) &m, sizeof(m));
             for (int i = 0; i < n * m; i++) {
-                uint8_t num = (uint8_t) (rand() % 4);
+                uint8_t num = (uint8_t) (rand() % 256);
                 file.write((char *) &num, sizeof(num));
             }
 
@@ -153,7 +162,7 @@ namespace {
     }
 
     void printInFile() {
-        ifstream file("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/in.bin", ios::in | ios::binary);
+        ifstream file(IN, ios::in | ios::binary);
         if (file.is_open()) {
             int n, m;
 
@@ -189,7 +198,7 @@ namespace {
     }
 
     void printOutFile() {
-        ifstream file("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/out.bin", ios::in | ios::binary);
+        ifstream file(OUT, ios::in | ios::binary);
         if (file.is_open()) {
             int n, m;
 
@@ -212,7 +221,7 @@ namespace {
 }
 
 void test() {
-    ifstream file("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/in.bin", ios::in | ios::binary);
+    ifstream file(IN, ios::in | ios::binary);
     if (file.is_open()) {
         int n, m;
 
@@ -253,11 +262,11 @@ void test() {
 
 
 int main(int argc, char *argv[]) {
-    generateInFile(5);
-    printInFile();
-    BlockMult(2);
-    printOutFile();
-    test();
+    generateInFile(1000);
+//    printInFile();
+    BlockMult(BLOCK);
+//    printOutFile();
+//    test();
     return 0;
 }
 
