@@ -6,98 +6,124 @@ using namespace std;
 
 namespace {
 
-    void MultSimple(const int *__restrict a, const int *__restrict b, int *__restrict c, int n) {
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                for (int k = 0; k < n; ++k) {
-                    c[i * n + j] += a[i * n + k] * b[k * n + j];
+    void MultSimple(const int *__restrict a, const int *__restrict b, int *__restrict c, int n1, int m1, int n2, int m2) {
+        for (int i = 0; i < n1; ++i) {
+            for (int j = 0; j < m2; ++j) {
+                for (int k = 0; k < m1; ++k) {
+                    c[i * m2 + j] += a[i * m1 + k] * b[k * m2 + j];
                 }
             }
         }
     }
 
-    void readBlockA(ifstream &in, int block_i, int block_j, int block_size, int n, int *__restrict a) {
+    void readBlockA(ifstream &in, int block_i, int block_j, int block_size, int block_n, int block_m, int n,
+                    int *__restrict a) {
         int startA = 8;
-
+        int shiftToNextRow = n - block_m;
         int block_start_position = startA + n * block_size * block_i + block_size * block_j;
-        int shiftToNextRow = n - block_size;
         in.seekg(block_start_position, ios_base::beg);
 
-        for (int i = 0; i < block_size; ++i) {
+        for (int i = 0; i < block_n; ++i) {
             if (i != 0) {
                 in.seekg(shiftToNextRow, ios_base::cur);
             }
-            char buffer[block_size];
-            in.read(buffer, block_size);
-            for (int j = 0; j < block_size; ++j) {
-                a[i * block_size + j] = (int) buffer[j];
+            char buffer[block_m];
+            in.read(buffer, block_m);
+            for (int j = 0; j < block_m; ++j) {
+                a[i * block_m + j] = (int) buffer[j];
             }
         }
 
     }
 
-    void readBlockB(ifstream &in, int block_i, int block_j, int block_size, int n, int *__restrict b) {
+    void readBlockB(ifstream &in, int block_i, int block_j, int block_size, int block_n, int block_m, int n,
+                    int *__restrict b) {
         int startB = 16 + n * n;
 
+        int shiftToNextRow = n - block_m;
         int block_start_position = startB + n * block_size * block_i + block_size * block_j;
-        int shiftToNextRow = n - block_size;
 
         in.seekg(block_start_position, ios_base::beg);
-        for (int i = 0; i < block_size; ++i) {
+        for (int i = 0; i < block_n; ++i) {
             if (i != 0) {
                 in.seekg(shiftToNextRow, ios_base::cur);
             }
-            char buffer[block_size];
-            in.read(buffer, block_size);
-            for (int j = 0; j < block_size; ++j) {
-                b[i * block_size + j] = buffer[j];
+            char buffer[block_m];
+            in.read(buffer, block_m);
+            for (int j = 0; j < block_m; ++j) {
+                b[i * block_m + j] = buffer[j];
             }
         }
     }
 
-    void writeBlockC(ofstream &out, int block_i, int block_j, int block_size, int n, int *__restrict c) {
+    void writeBlockC(ofstream &out, int block_i, int block_j, int block_size, int block_n, int block_m, int n,
+                     int *__restrict c) {
         int startC = 8;
 
+        int shiftToNextRow = n - block_m;
+
         int block_start_position = startC + n * block_size * block_i + block_size * block_j;
-        int shiftToNextRow = n - block_size;
         out.seekp(block_start_position, ios_base::beg);
 
-        for (int i = 0; i < block_size; ++i) {
+        for (int i = 0; i < block_n; ++i) {
             if (i != 0) {
                 out.seekp(shiftToNextRow, ios_base::cur);
             }
-            char buffer[block_size];
-            for (int j = 0; j < block_size; ++j) {
-                buffer[j] = (uint8_t) (c[i * block_size + j] % 256);
+            char buffer[block_m];
+            for (int j = 0; j < block_m; ++j) {
+                buffer[j] = (uint8_t) (c[i * block_m + j] % 256);
             }
-            out.write(buffer, block_size);
+            out.write(buffer, block_m);
         }
     }
 
+    void calculateSizeOfBlock(int n, int BLOCK, int i_block, int j_block, int &n_block, int &m_block) {
+        if ((i_block + 1) * BLOCK > n) {
+            n_block = n % BLOCK;
+        } else {
+            n_block = BLOCK;
+        }
+        if ((j_block + 1) * BLOCK > n) {
+            m_block = n % BLOCK;
+        } else {
+            m_block = BLOCK;
+        }
+    }
 
     void BlockMult(int BLOCK) {
         ifstream in("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/in.bin", ios::in | ios::binary);
         ofstream out("/Users/akasiyanik/FPMI/Tolstikov/io-matrix-mult/out.bin", ios::out | ios::binary);
         if (in.is_open() && out.is_open()) {
             int n, m;
+
             in.read((char *) &n, sizeof(n));
             in.read((char *) &m, sizeof(m));
             out.write((char *) &n, sizeof(n));
             out.write((char *) &m, sizeof(m));
-            int blockCountInRow = (int) ceil(n / BLOCK);
+
+            int blockCountInRow = (int) ceil((float) n / BLOCK);
             for (int i = 0; i < blockCountInRow; ++i) {
                 for (int j = 0; j < blockCountInRow; ++j) {
-                    int *c = new int[BLOCK * BLOCK];
-                    //fill with zeros??
-                    for (int k = 0; k < blockCountInRow; ++k) {
-                        int *a = new int[BLOCK * BLOCK];
-                        readBlockA(in, i, k, BLOCK, n, a);
-                        int *b = new int[BLOCK * BLOCK];
-                        readBlockB(in, k, j, BLOCK, n, b);
-
-                        MultSimple(a, b, c, BLOCK);
+                    int c_n, c_m;
+                    calculateSizeOfBlock(n, BLOCK, i, j, c_n, c_m);
+                    int *c = new int[c_n * c_m];
+                    for (int i = 0; i < c_n * c_m; ++i) {
+                        c[i] = 0;
                     }
-                    writeBlockC(out, i, j, BLOCK, n, c);
+                    for (int k = 0; k < blockCountInRow; ++k) {
+                        int a_n, a_m;
+                        calculateSizeOfBlock(n, BLOCK, i, k, a_n, a_m);
+                        int *a = new int[a_n * a_m];
+                        readBlockA(in, i, k, BLOCK, a_n, a_m, n, a);
+
+                        int b_n, b_m;
+                        calculateSizeOfBlock(n, BLOCK, k, j, b_n, b_m);
+                        int *b = new int[b_n * b_m];
+                        readBlockB(in, k, j, BLOCK, b_n, b_m, n, b);
+
+                        MultSimple(a, b, c, a_n, a_m, b_n, b_m);
+                    }
+                    writeBlockC(out, i, j, BLOCK, c_n, c_m, n, c);
                 }
             }
         }
@@ -111,14 +137,14 @@ namespace {
             file.write((char *) &n, sizeof(n));
             file.write((char *) &m, sizeof(m));
             for (int i = 0; i < n * m; i++) {
-                uint8_t num = (uint8_t) (rand() % 256);
+                uint8_t num = (uint8_t) (rand() % 4);
                 file.write((char *) &num, sizeof(num));
             }
 
             file.write((char *) &n, sizeof(n));
             file.write((char *) &m, sizeof(m));
             for (int i = 0; i < n * m; i++) {
-                uint8_t num = (uint8_t) (rand() % 10);
+                uint8_t num = (uint8_t) (rand() % 4);
                 file.write((char *) &num, sizeof(num));
             }
 
@@ -213,7 +239,7 @@ void test() {
             }
         }
         int *c = new int[n * n];
-        MultSimple(a, b, c, n);
+        MultSimple(a, b, c, n, n, n, n);
 
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
@@ -227,7 +253,7 @@ void test() {
 
 
 int main(int argc, char *argv[]) {
-    generateInFile(4);
+    generateInFile(5);
     printInFile();
     BlockMult(2);
     printOutFile();
